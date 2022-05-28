@@ -9,7 +9,7 @@ import logging
 logging.basicConfig(level=logging.INFO,
                         format='%(levelname)-s: %(message)s')
 
-ciphers = {
+ciphers_list = {
     "aes-256-gcm",
     "aes-192-gcm",
     "aes-128-gcm",
@@ -28,30 +28,62 @@ ciphers = {
     "rc4-md5",
 }
 
+protocol_list = {
+    "origin",
+    "auth_aes128_md5", 
+    "auth_aes128_sha1", 
+    "auth_sha1_v4",
+    "auth_sha1_v4_compatible",
+    "auth_chain_a", 
+    "auth_chain_b", 
+    "auth_chain_c", 
+    "auth_chain_d", 
+    "auth_chain_e",
+    "auth_chain_f",
+    
+}
+
+obfs_list = {
+    "plain",
+    "http_simple",
+    "http_simple_compatible",
+    "http_post",
+    "http_post_compatible",
+    "random_head",
+    "random_head_compatible",
+    "tls1.2_ticket_auth",
+    "tls1.2_ticket_auth_compatible",
+    "tls1.2_ticket_fastauth",
+    "tls1.2_ticket_fastauth_compatible",
+}
+
+
 ENVConfig = {
-    "PORT",
-    "METHOD",
-    "PASSWORD"
+    "SERVER_PORT":"server_port",
+    "METHOD":"method",
+    "PASSWORD":"password",
+    "PROTOCOL":"protocol",
+    "PROTOCOL_PARAM":"protocol_param",
+    "OBFS":"obfs",
+    "OBFS_PARAM":"obfs_param"
 }
 
 def load_config(file_path):
     config = {}
     if os.path.exists(file_path) == False:
         return None
-    with open(file_path, 'rb') as f:
+    with open(file_path, 'r') as f:
         try:
-            config = parse_json_in_str(remove_comment(f.read().decode('utf8')))
+            config = json.load(f)
         except ValueError as e:
             logging.error('found an error in reading config.json: %s', str(e))
             sys.exit(1)
     return config
 
 def write_config(file_path,config):
-    if os.path.exists(file_path) == False:
-        logging.error('config.json not exist: %s', str(e))
-        sys.exit(1)
-    with open(file_path, 'rb') as f:
+    with open(file_path, 'w+') as f:
         try:
+            print("write config",config)
             json.dump(config,f)
         except ValueError as e:
             logging.error('found an error in writing config.json: %s', str(e))
@@ -59,102 +91,46 @@ def write_config(file_path,config):
 
 def read_config_from_env():
     config = {}
-    if "PORT" in os.environ.keys():
-        config["server_port"] = os.environ.get("PORT");
-    if "METHOD" in os.environ.keys():
-        config["method"] = os.environ.get("METHOD");
-        cipher_check(config)
-    if "PASSWORD" in os.environ.keys():
-        config["password"] = os.environ.get("PASSWORD");
+    for key in ENVConfig.keys():
+        if key in os.environ.keys():
+            config[ENVConfig[key]] = os.environ.get(key);
+            if key == "METHOD":
+                cipher_check(config)
+            if key == "PROTOCOL":
+                protocol_check(config)
+            if key == "OBFS":
+                obfs_check(config)
     return config
 
 def cipher_check(config):
-    if config["method"] not in ciphers:
+    if config["method"] not in ciphers_list:
         logging.error('Method not support: %s', str(config["method"]))
         sys.exit(1)
     return config
 
 
-
-def _decode_list(data):
-    rv = []
-    for item in data:
-        if hasattr(item, 'encode'):
-            item = item.encode('utf-8')
-        elif isinstance(item, list):
-            item = _decode_list(item)
-        elif isinstance(item, dict):
-            item = _decode_dict(item)
-        rv.append(item)
-    return rv
+def protocol_check(config):
+    if config["protocol"] not in protocol_list:
+        logging.error('Protocol not support: %s', str(config["protocol"]))
+        sys.exit(1)
+    return config
 
 
-def _decode_dict(data):
-    rv = {}
-    for key, value in data.items():
-        if hasattr(value, 'encode'):
-            value = value.encode('utf-8')
-        elif isinstance(value, list):
-            value = _decode_list(value)
-        elif isinstance(value, dict):
-            value = _decode_dict(value)
-        rv[key] = value
-    return rv
-
-class JSFormat:
-    def __init__(self):
-        self.state = 0
-
-    def push(self, ch):
-        ch = ord(ch)
-        if self.state == 0:
-            if ch == ord('"'):
-                self.state = 1
-                return to_str(chr(ch))
-            elif ch == ord('/'):
-                self.state = 3
-            else:
-                return to_str(chr(ch))
-        elif self.state == 1:
-            if ch == ord('"'):
-                self.state = 0
-                return to_str(chr(ch))
-            elif ch == ord('\\'):
-                self.state = 2
-            return to_str(chr(ch))
-        elif self.state == 2:
-            self.state = 1
-            if ch == ord('"'):
-                return to_str(chr(ch))
-            return "\\" + to_str(chr(ch))
-        elif self.state == 3:
-            if ch == ord('/'):
-                self.state = 4
-            else:
-                return "/" + to_str(chr(ch))
-        elif self.state == 4:
-            if ch == ord('\n'):
-                self.state = 0
-                return "\n"
-        return ""
-
-def remove_comment(json):
-    fmt = JSFormat()
-    return "".join([fmt.push(c) for c in json])
-
-def parse_json_in_str(data):
-    # parse json and convert everything from unicode to str
-    return json.loads(data, object_hook=_decode_dict)
+def obfs_check(config):
+    if config["obfs"] not in obfs_list:
+        logging.error('OBFS not support: %s', str(config["obfs"]))
+        sys.exit(1)
+    return config
 
 
 if __name__ == "__main__":
-    config_file_path = "/etc/shadowsocks-python/config.json"
+    config_file_path = "/home/config.json"
     config_env = read_config_from_env()
     config_file = load_config(config_file_path)
     for key in config_file.keys():
         if key in config_env.keys():
             config_file[key] = config_env[key]
-    print(config_file)
+    print("generate config:",config_file)
     write_config(config_file_path, config_file)
     import subprocess
-    subprocess.call("ssserver -c /home/config.json", shell=True)
+    subprocess.call("/home/shadowsocks/server.py -c /home/config.json", shell=True)

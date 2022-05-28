@@ -4,7 +4,7 @@
     "server_port":9000,
     "local_address":"127.0.0.1",
     "local_port":1080,
-    "password":"password0",
+    "password":"password",
     "timeout":120,
     "method":"aes-256-cfb",
     "protocol":"origin",

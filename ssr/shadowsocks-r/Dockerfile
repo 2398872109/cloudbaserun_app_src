@@ -1,20 +1,28 @@
-
 FROM python:3.7-alpine
+
+ENV WORKPATH=/home
+
+ENV SERVER_PORT=9000
+ENV PASSWORD=password
+ENV METHOD=aes-256-cfb
+ENV PROTOCOL=origin
+ENV OBFS=plain
+
+
+COPY shadowsocksr-3.2.2.tar.gz ${WORKPATH}/
 
 
 RUN set -ex \
-	&& apk add --no-cache tar libsodium-dev openssl 
-
-WORKDIR /home
-
-COPY script ./script
-COPY shadowsocksr-3.2.2.tar.gz .
-
-RUN tar zxf shadowsocksr-3.2.2.tar.gz \
+	&& apk add --no-cache tar libsodium-dev openssl \
+	&& cd ${WORKPATH} \
+	&& tar zxf shadowsocksr-3.2.2.tar.gz \
 	&& mv shadowsocksr-3.2.2/shadowsocks . \
 	&& rm -f shadowsocksr-3.2.2.tar.gz
 
-COPY config_sample.json config.json
+ADD script "${WORKPATH}/script"
+ADD config.json "${WORKPATH}/config.json"
 
-#CMD [ "/usr/local/shadowsocks/server.py", "-c", "/etc/shadowsocks-r/config.json" ]
-CMD [ "/home/shadowsocks/server.py", "-c", "/home/config.json" ]
+WORKDIR /home
+
+#CMD [ "/home/shadowsocks/server.py", "-c", "/home/config.json" ]
+CMD [ "python","/home/script/config.py" ]
