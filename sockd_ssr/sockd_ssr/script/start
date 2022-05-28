@@ -1,0 +1,6 @@
+#! /bin/sh
+
+sh script/envset
+danted/sbin/sockd -D
+python script/config.py
+echo "start OK"
