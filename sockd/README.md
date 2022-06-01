@@ -18,4 +18,4 @@
 
 * PORT：默认 2020，可修改；
 * USERNAME：默认 root，可修改，需要与 PASSWORD 同时设置才生效；
-* PASSWORD：默认 12345678，可修改，需要与 USERNAME 同时设置才生效；
+* PASSWORD：默认 123456，可修改，需要与 USERNAME 同时设置才生效；
